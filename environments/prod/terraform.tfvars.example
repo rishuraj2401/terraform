@@ -1,0 +1,218 @@
+# environments/prod/terraform.tfvars.example
+# Copy this file to terraform.tfvars and update with your actual values
+
+# ==========================================
+# Project Configuration
+# ==========================================
+host_project_id = "client-project-id"           # Your GCP Host Project ID
+region          = "asia-south1"                  # GCP Region
+zone            = "asia-south1-b"                # GCP Zone
+
+# ==========================================
+# Shared VPC Configuration
+# ==========================================
+network_name           = "callzen-shared-vpc"
+routing_mode           = "REGIONAL"               # REGIONAL or GLOBAL
+enable_shared_vpc_host = false                    # Set to true after getting org permissions
+service_project_ids    = ["callzen-gcp"]         # Convozen GCP Project
+
+# ==========================================
+# Subnet Configuration
+# ==========================================
+kubernetes_subnet_name = "kubernetes-subnet"
+kubernetes_subnet_cidr = "10.0.0.0/24"           # 256 IPs for K8s cluster
+backend_subnet_name    = "backend-services-subnet"
+backend_subnet_cidr    = "10.1.0.0/24"           # 256 IPs for backend services
+
+# ==========================================
+# Firewall Configuration
+# ==========================================
+internal_source_ranges = ["10.0.0.0/8"]          # Allow all internal traffic
+k8s_api_source_ranges  = ["0.0.0.0/0"]           # TODO: CHANGE THIS FOR PRODUCTION!
+# For production, use specific IPs:
+# k8s_api_source_ranges = ["203.0.113.10/32", "198.51.100.20/32"]
+
+# ==========================================
+# Service Account Names
+# ==========================================
+k8s_master_sa_name       = "k8s-master-sa"
+k8s_worker_sa_name       = "k8s-worker-sa"
+backend_services_sa_name = "backend-services-sa"
+
+# ==========================================
+# Kubernetes Master Configuration
+# ==========================================
+k8s_master_name           = "k8s-master"
+k8s_master_machine_type   = "n2d-standard-4"     # 4 vCPUs, 16 GB RAM
+k8s_master_boot_disk_size = 50                   # GB
+k8s_master_ip             = "10.0.0.2"
+
+# Optional: Add startup script path
+# k8s_master_startup_script = file("${path.module}/scripts/k8s-master-setup.sh")
+
+# ==========================================
+# Kubernetes Worker Configuration
+# ==========================================
+k8s_worker_count           = 4                    # Number of worker nodes
+k8s_worker_name_prefix     = "k8s-worker"
+k8s_worker_machine_type    = "n2d-standard-4"    # Adjust based on workload
+k8s_worker_boot_disk_size  = 50                  # GB
+k8s_worker_ips = [
+  "10.0.0.3",
+  "10.0.0.4",
+  "10.0.0.5",
+  "10.0.0.6"
+]
+
+# Optional: Add startup script
+# k8s_worker_startup_script = file("${path.module}/scripts/k8s-worker-setup.sh")
+
+# ==========================================
+# Backend Services - Reserved IPs
+# ==========================================
+backend_service_ips = {
+  mysql          = "10.1.0.8"
+  mongodb        = "10.1.0.9"
+  redis          = "10.1.0.10"
+  kbs            = "10.1.0.11"                   # Key Broker Service
+  log-server     = "10.1.0.12"
+  config-server  = "10.1.0.13"
+  elasticsearch  = "10.1.0.14"
+  speech-service = "10.1.0.15"
+}
+
+# ==========================================
+# Backend Services - Detailed Configuration
+# ==========================================
+backend_services = {
+  mysql = {
+    name                          = "mysql-server"
+    machine_type                  = "n2d-standard-4"
+    boot_disk_size                = 50
+    data_disk_size                = 100          # Additional disk for /var/lib/mysql
+    ip_address                    = "10.1.0.8"
+    enable_confidential_computing = false
+    # startup_script = file("${path.module}/scripts/mysql-setup.sh")
+  }
+  
+  mongodb = {
+    name                          = "mongodb-server"
+    machine_type                  = "n2d-standard-4"
+    boot_disk_size                = 50
+    data_disk_size                = 100
+    ip_address                    = "10.1.0.9"
+    enable_confidential_computing = false
+  }
+  
+  redis = {
+    name                          = "redis-server"
+    machine_type                  = "n2-standard-2"
+    boot_disk_size                = 30
+    data_disk_size                = 0            # Redis uses memory
+    ip_address                    = "10.1.0.10"
+    enable_confidential_computing = false
+  }
+  
+  kbs = {
+    name                          = "kbs-server"
+    machine_type                  = "n2d-standard-2"
+    boot_disk_size                = 30
+    data_disk_size                = 0
+    ip_address                    = "10.1.0.11"
+    enable_confidential_computing = true         # MUST BE TRUE for KBS
+  }
+  
+  log-server = {
+    name                          = "log-server"
+    machine_type                  = "n2-standard-2"
+    boot_disk_size                = 30
+    data_disk_size                = 100          # For log storage
+    ip_address                    = "10.1.0.12"
+    enable_confidential_computing = false
+  }
+  
+  config-server = {
+    name                          = "config-server"
+    machine_type                  = "n2-standard-2"
+    boot_disk_size                = 30
+    data_disk_size                = 0
+    ip_address                    = "10.1.0.13"
+    enable_confidential_computing = false
+  }
+  
+  elasticsearch = {
+    name                          = "elasticsearch-server"
+    machine_type                  = "n2d-standard-4"
+    boot_disk_size                = 50
+    data_disk_size                = 200          # For Elasticsearch data
+    ip_address                    = "10.1.0.14"
+    enable_confidential_computing = false
+  }
+  
+  speech-service = {
+    name                          = "speech-server"
+    machine_type                  = "n2-standard-4"  # TODO: Add GPU if needed
+    boot_disk_size                = 50
+    data_disk_size                = 0
+    ip_address                    = "10.1.0.15"
+    enable_confidential_computing = false
+    # For GPU instances, change machine_type to n1-standard-4 and add GPU
+  }
+}
+
+# ==========================================
+# OS and Disk Configuration
+# ==========================================
+os_image        = "ubuntu-os-cloud/ubuntu-2204-lts"
+boot_disk_type  = "pd-balanced"                  # pd-standard, pd-balanced, or pd-ssd
+
+# ==========================================
+# Cloud Storage Configuration
+# ==========================================
+# IMPORTANT: Bucket names must be globally unique!
+# Add a unique suffix to your bucket names
+terraform_state_bucket_name = "callzen-terraform-state-prod-CHANGE-THIS"
+create_backup_bucket        = true
+backup_bucket_name          = "callzen-backups-prod-CHANGE-THIS"
+
+# Optional: Additional buckets
+additional_buckets = {
+  # logs = {
+  #   name               = "callzen-logs-prod-unique"
+  #   storage_class      = "STANDARD"
+  #   versioning_enabled = false
+  # }
+  # artifacts = {
+  #   name               = "callzen-artifacts-prod-unique"
+  #   storage_class      = "STANDARD"
+  #   versioning_enabled = true
+  # }
+}
+
+# ==========================================
+# Artifact Registry Configuration
+# ==========================================
+docker_repository_id = "callzen-docker-repo"
+
+# ==========================================
+# Resource Labels
+# ==========================================
+labels = {
+  environment = "production"
+  project     = "callzen"
+  team        = "devops"
+  managed-by  = "terraform"
+  cost-center = "engineering"
+}
+
+# ==========================================
+# Notes for Production:
+# ==========================================
+# 1. Change all bucket names to globally unique values
+# 2. Update k8s_api_source_ranges with your office/VPN IP addresses
+# 3. Add startup scripts for VM initialization
+# 4. Configure machine types based on actual workload requirements
+# 5. Set up budget alerts in GCP Console
+# 6. Enable VPC Flow Logs for network monitoring
+# 7. Configure Cloud Monitoring and Alerting
+# 8. Set up regular backups for databases
