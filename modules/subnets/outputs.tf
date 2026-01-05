@@ -1,28 +1,28 @@
-# modules/subnet/outputs.tf
-# Outputs for Subnet Module (Self-managed Kubernetes)
+# modules/subnets/outputs.tf
 
 ############################################
 # Kubernetes Subnet Outputs
 ############################################
 
 output "kubernetes_subnet_id" {
-  description = "ID of the Kubernetes subnet (existing or newly managed)"
-  value       = google_compute_subnetwork.kubernetes_subnet.id
+  description = "ID of the Kubernetes subnet"
+  # FIX: Reference the DATA source, not a resource
+  value       = data.google_compute_subnetwork.k8s.id
 }
 
 output "kubernetes_subnet_name" {
   description = "Name of the Kubernetes subnet"
-  value       = google_compute_subnetwork.kubernetes_subnet.name
+  value       = data.google_compute_subnetwork.k8s.name
 }
 
 output "kubernetes_subnet_self_link" {
-  description = "Self-link of the Kubernetes subnet (used by compute, firewall, routes)"
-  value       = google_compute_subnetwork.kubernetes_subnet.self_link
+  description = "Self-link of the Kubernetes subnet"
+  value       = data.google_compute_subnetwork.k8s.self_link
 }
 
 output "kubernetes_subnet_cidr" {
-  description = "Primary CIDR range of the Kubernetes subnet (secondary ranges ignored)"
-  value       = google_compute_subnetwork.kubernetes_subnet.ip_cidr_range
+  description = "Primary CIDR range of the Kubernetes subnet"
+  value       = data.google_compute_subnetwork.k8s.ip_cidr_range
 }
 
 ############################################
@@ -31,22 +31,23 @@ output "kubernetes_subnet_cidr" {
 
 output "backend_subnet_id" {
   description = "ID of the backend services subnet"
-  value       = google_compute_subnetwork.backend_subnet.id
+  # FIX: Reference the DATA source
+  value       = data.google_compute_subnetwork.backend.id
 }
 
 output "backend_subnet_name" {
   description = "Name of the backend services subnet"
-  value       = google_compute_subnetwork.backend_subnet.name
+  value       = data.google_compute_subnetwork.backend.name
 }
 
 output "backend_subnet_self_link" {
   description = "Self-link of the backend services subnet"
-  value       = google_compute_subnetwork.backend_subnet.self_link
+  value       = data.google_compute_subnetwork.backend.self_link
 }
 
 output "backend_subnet_cidr" {
   description = "CIDR range of the backend services subnet"
-  value       = google_compute_subnetwork.backend_subnet.ip_cidr_range
+  value       = data.google_compute_subnetwork.backend.ip_cidr_range
 }
 
 ############################################
@@ -55,6 +56,7 @@ output "backend_subnet_cidr" {
 
 output "k8s_master_ip_address" {
   description = "Reserved internal IP address for Kubernetes master node"
+  # These references remain the same as they are still Resources created by this module
   value       = google_compute_address.k8s_master_ip.address
 }
 
@@ -86,15 +88,16 @@ output "backend_service_ip_addresses" {
 }
 
 ############################################
-# Design / Debug Outputs (Optional but Useful)
+# Design / Debug Outputs
 ############################################
 
 output "subnet_region" {
-  description = "Region where subnets are created"
+  description = "Region where subnets are located"
   value       = var.region
 }
 
 output "vpc_network_self_link" {
   description = "Self-link of the VPC network used by subnets"
-  value       = var.network_self_link
+  # FIX: We fetch this from the data source now, since var.network_self_link was removed
+  value       = data.google_compute_subnetwork.k8s.network
 }

@@ -14,7 +14,7 @@ terraform {
 }
 
 ############################################
-# Provider
+# Provider (Default is Host Project for Network Ops)
 ############################################
 
 provider "google" {
@@ -23,7 +23,7 @@ provider "google" {
 }
 
 ############################################
-# Enable Required APIs
+# Enable Required APIs (In Host Project)
 ############################################
 
 resource "google_project_service" "required_apis" {
@@ -44,7 +44,7 @@ resource "google_project_service" "required_apis" {
 }
 
 ############################################
-# Module 1: VPC
+# Module 1: VPC (Host Project)
 ############################################
 
 module "shared_vpc" {
@@ -54,43 +54,45 @@ module "shared_vpc" {
   network_name           = var.network_name
   routing_mode           = var.routing_mode
   enable_shared_vpc_host = var.enable_shared_vpc_host
-  service_project_ids    = var.service_project_ids
+  service_project_ids    = var.service_project_ids # This links Service Project to Host
 
   depends_on = [google_project_service.required_apis]
 }
 
 ############################################
-# Module 2: Subnets
+# Module 2: Subnets & IP Reservation
 ############################################
 
 module "subnets" {
-  source = "../../modules/subnet"
+  source = "../../modules/subnets"
 
-  project_id        = var.host_project_id
-  region            = var.region
-  network_self_link = module.shared_vpc.network_self_link
+  # 1. Service Project (Where IPs are created)
+  project_id = var.service_project_id
 
+  # 2. Host Project (Where Subnets exist)
+  host_project_id = var.host_project_id
+
+  region = var.region
+
+  # Subnet Names (Module looks them up in Host Project)
   kubernetes_subnet_name = var.kubernetes_subnet_name
-  kubernetes_subnet_cidr = var.kubernetes_subnet_cidr
+  backend_subnet_name    = var.backend_subnet_name
 
-  backend_subnet_name = var.backend_subnet_name
-  backend_subnet_cidr = var.backend_subnet_cidr
-
+  # Reserved IPs (Created in Service Project)
   k8s_master_ip       = var.k8s_master_ip
   k8s_worker_count    = var.k8s_worker_count
   k8s_worker_ips      = var.k8s_worker_ips
   backend_service_ips = var.backend_service_ips
-
-  enable_private_google_access = true
 }
 
 ############################################
-# Module 3: Firewall
+# Module 3: Firewall (Host Project)
 ############################################
 
 module "firewall" {
   source = "../../modules/firewall"
 
+  # Firewall rules always live in the Host Project (VPC Owner)
   project_id        = var.host_project_id
   network_self_link = module.shared_vpc.network_self_link
 
@@ -99,31 +101,37 @@ module "firewall" {
 }
 
 ############################################
-# Module 4: Service Accounts
+# Module 4: Service Accounts (Service Project)
 ############################################
 
 module "service_accounts" {
   source = "../../modules/service-account"
 
-  project_id               = var.host_project_id
+  # SAs should belong to the Service Project (Tenant)
+  project_id               = var.service_project_id
+  
   k8s_master_sa_name       = var.k8s_master_sa_name
   k8s_worker_sa_name       = var.k8s_worker_sa_name
   backend_services_sa_name = var.backend_services_sa_name
 
-  depends_on = [google_project_service.required_apis]
+  # Note: APIs must be enabled in Service Project too if not already
 }
 
 ############################################
-# Module 5: Compute Instances (Golden Images)
+# Module 5: Compute Instances (Service Project)
 ############################################
 
 module "compute_instances" {
   source = "../../modules/compute-instance"
 
-  project_id        = var.host_project_id
+  # VMs are created in the Service Project (Tenant)
+  project_id        = var.service_project_id
   zone              = var.zone
+  
+  # They attach to the Network in the Host Project
   network_self_link = module.shared_vpc.network_self_link
 
+  # Subnet Links come from the Subnets module (which read them from Host Project)
   kubernetes_subnet_self_link = module.subnets.kubernetes_subnet_self_link
   backend_subnet_self_link    = module.subnets.backend_subnet_self_link
 
@@ -148,7 +156,7 @@ module "compute_instances" {
   backend_services          = var.backend_services
   backend_services_sa_email = module.service_accounts.backend_services_sa_email
 
-  # 🔥 PER-ROLE / PER-SERVICE GOLDEN IMAGES
+  # Golden Images
   os_images = var.os_images
 
   boot_disk_type = var.boot_disk_type
@@ -156,13 +164,15 @@ module "compute_instances" {
 }
 
 ############################################
-# Module 6: Cloud Storage
+# Module 6: Cloud Storage (Service Project)
 ############################################
 
 module "cloud_storage" {
   source = "../../modules/cloud-storage"
 
-  project_id                  = var.host_project_id
+  # Buckets usually belong to the Service Project
+  project_id                  = var.service_project_id
+  
   location                    = var.region
   terraform_state_bucket_name = var.terraform_state_bucket_name
 
@@ -171,26 +181,23 @@ module "cloud_storage" {
   additional_buckets   = var.additional_buckets
 
   labels = var.labels
-
-  depends_on = [google_project_service.required_apis]
 }
 
 ############################################
-# Module 7: Artifact Registry
+# Module 7: Artifact Registry (Service Project)
 ############################################
 
 module "artifact_registry" {
   source = "../../modules/artifact-registry"
 
-  project_id           = var.host_project_id
+  # Repo belongs to Service Project
+  project_id           = var.service_project_id
+  
   location             = var.region
   docker_repository_id = var.docker_repository_id
   k8s_worker_sa_email  = module.service_accounts.k8s_worker_sa_email
 
   labels = var.labels
 
-  depends_on = [
-    google_project_service.required_apis,
-    module.service_accounts
-  ]
+  depends_on = [module.service_accounts]
 }

@@ -52,16 +52,16 @@ variable "kubernetes_subnet_name" {
   type = string
 }
 
-variable "kubernetes_subnet_cidr" {
-  type = string
-}
+
 
 variable "backend_subnet_name" {
   type = string
 }
 
-variable "backend_subnet_cidr" {
-  type = string
+
+variable "service_project_id" {
+  description = "The ID of the service project where resources are created"
+  type        = string
 }
 
 ############################################
