@@ -32,16 +32,33 @@ data "google_compute_subnetwork" "backend" {
 # Reserved Internal IPs – Kubernetes Master
 ############################################
 
-resource "google_compute_address" "k8s_master_ip" {
-  name         = "${var.kubernetes_subnet_name}-master-ip"
+locals {
+  # Prefer list-based input; fall back to legacy single IP input.
+  k8s_master_ips_effective   = var.k8s_master_ips != null ? var.k8s_master_ips : (var.k8s_master_ip != null ? [var.k8s_master_ip] : [])
+  k8s_master_count_effective = var.k8s_master_ips != null ? length(var.k8s_master_ips) : var.k8s_master_count
+}
+
+resource "google_compute_address" "k8s_master_ips" {
+  count        = local.k8s_master_count_effective
+  name         = count.index == 0 ? "${var.kubernetes_subnet_name}-master-ip" : "${var.kubernetes_subnet_name}-master-${count.index + 1}-ip"
   project      = var.project_id
   region       = var.region
   address_type = "INTERNAL"
 
   subnetwork = data.google_compute_subnetwork.k8s.self_link
-  address    = var.k8s_master_ip
+  address    = try(local.k8s_master_ips_effective[count.index], null)
 
-  description = "Reserved internal IP for Kubernetes master node"
+  description = "Reserved internal IP for Kubernetes master node ${count.index + 1}"
+
+  lifecycle {
+    precondition {
+      condition = (
+        length(local.k8s_master_ips_effective) == local.k8s_master_count_effective &&
+        local.k8s_master_count_effective >= 1
+      )
+      error_message = "You must provide one master IP per master. Set k8s_master_ips with length == k8s_master_count (or set legacy k8s_master_ip for single-master)."
+    }
+  }
 }
 
 ############################################
@@ -66,8 +83,8 @@ resource "google_compute_address" "k8s_worker_ips" {
 ############################################
 
 resource "google_compute_address" "backend_service_ips" {
-  for_each     = var.backend_service_ips
-  
+  for_each = var.backend_service_ips
+
   # Name updated to use backend subnet name prefix
   name         = "${var.backend_subnet_name}-${each.key}-ip"
   project      = var.project_id

@@ -68,8 +68,44 @@ variable "service_project_id" {
 # Reserved Internal IPs
 ############################################
 
+variable "k8s_master_count" {
+  description = "Number of Kubernetes master nodes"
+  type        = number
+  default     = 3
+
+  validation {
+    condition     = var.k8s_master_count >= 1 && var.k8s_master_count <= 9
+    error_message = "k8s_master_count must be between 1 and 9."
+  }
+}
+
+variable "k8s_master_ips" {
+  description = "Reserved internal IPs for Kubernetes master nodes (preferred)"
+  type        = list(string)
+  default     = null
+
+  validation {
+    condition = (
+      var.k8s_master_ips == null ||
+      (
+        length(var.k8s_master_ips) == var.k8s_master_count &&
+        alltrue([for ip in var.k8s_master_ips : can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
+      )
+    )
+    error_message = "k8s_master_ips must be null or a list of valid IPv4 addresses with length equal to k8s_master_count."
+  }
+}
+
+# Legacy (single master): kept for backward compatibility
 variable "k8s_master_ip" {
-  type = string
+  description = "Reserved internal IP for Kubernetes master (legacy single-master input)"
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.k8s_master_ip == null || can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}$", var.k8s_master_ip))
+    error_message = "k8s_master_ip must be null or a valid IPv4 address."
+  }
 }
 
 variable "k8s_worker_count" {
@@ -119,8 +155,17 @@ variable "backend_services_sa_name" {
 # Kubernetes – Compute
 ############################################
 
+variable "k8s_master_name_prefix" {
+  description = "Name prefix/base for Kubernetes master nodes (e.g. k8s-master)"
+  type        = string
+  default     = "k8s-master"
+}
+
+# Legacy (single master): kept for backward compatibility
 variable "k8s_master_name" {
-  type = string
+  description = "Name of the Kubernetes master node (legacy single-master input)"
+  type        = string
+  default     = null
 }
 
 variable "k8s_master_machine_type" {
@@ -132,7 +177,8 @@ variable "k8s_master_boot_disk_size" {
 }
 
 variable "k8s_master_startup_script" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "k8s_worker_name_prefix" {
@@ -148,7 +194,8 @@ variable "k8s_worker_boot_disk_size" {
 }
 
 variable "k8s_worker_startup_script" {
-  type = string
+  type    = string
+  default = ""
 }
 
 ############################################
@@ -210,9 +257,14 @@ variable "backup_bucket_name" {
 variable "additional_buckets" {
   description = "Additional GCS buckets to create"
   type = map(object({
-    name          = string
-    location      = string
-    storage_class = string
+    name               = string
+    storage_class      = optional(string, "STANDARD")
+    versioning_enabled = optional(bool, true)
+    lifecycle_rules = optional(list(object({
+      age    = number
+      action = string
+    })), [])
+    labels = optional(map(string), {})
   }))
   default = {}
 }

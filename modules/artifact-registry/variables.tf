@@ -127,7 +127,7 @@ variable "additional_readers" {
   description = "Additional service accounts or users who can read images"
   type        = list(string)
   default     = []
-  
+
   # Example: ["serviceAccount:cicd@project.iam.gserviceaccount.com"]
 }
 
@@ -135,7 +135,7 @@ variable "additional_writers" {
   description = "Additional service accounts or users who can push images"
   type        = list(string)
   default     = []
-  
+
   # Example: ["serviceAccount:gocd@project.iam.gserviceaccount.com"]
 }
 
@@ -152,7 +152,7 @@ variable "additional_admins" {
 variable "enable_cmek_encryption" {
   description = "Enable Customer-Managed Encryption Keys (CMEK) for image encryption"
   type        = bool
-  default     = false  # Will be enabled after KMS module is created
+  default     = false # Will be enabled after KMS module is created
 }
 
 variable "kms_key_name" {
@@ -174,7 +174,7 @@ variable "additional_repositories" {
     mode          = optional(string, "STANDARD_REPOSITORY")
     labels        = optional(map(string), {})
   }))
-  default = {}  # No additional repositories needed currently
+  default = {} # No additional repositories needed currently
 
   # Example usage:
   # additional_repositories = {
@@ -264,7 +264,7 @@ variable "repository_name_suffix" {
 variable "enable_immutable_tags" {
   description = "Prevent tag overwrites (recommended for production)"
   type        = bool
-  default     = false  # Can enable later for stricter control
+  default     = false # Can enable later for stricter control
 }
 
 # ==========================================

@@ -15,8 +15,16 @@ terraform {
 # Kubernetes Master Node
 ############################################
 
-resource "google_compute_instance" "k8s_master" {
-  name         = var.k8s_master_name
+locals {
+  # Prefer list-based input; fall back to legacy single-master inputs.
+  k8s_master_ips_effective   = var.k8s_master_ips != null ? var.k8s_master_ips : (var.k8s_master_ip != null ? [var.k8s_master_ip] : [])
+  k8s_master_count_effective = var.k8s_master_ips != null ? length(var.k8s_master_ips) : var.k8s_master_count
+  k8s_master_name_base       = coalesce(var.k8s_master_name_prefix, var.k8s_master_name, "k8s-master")
+}
+
+resource "google_compute_instance" "k8s_masters" {
+  count        = local.k8s_master_count_effective
+  name         = count.index == 0 ? local.k8s_master_name_base : "${local.k8s_master_name_base}-${count.index + 1}"
   project      = var.project_id
   zone         = var.zone
   machine_type = var.k8s_master_machine_type
@@ -50,7 +58,7 @@ resource "google_compute_instance" "k8s_master" {
   network_interface {
     network    = var.network_self_link
     subnetwork = var.kubernetes_subnet_self_link
-    network_ip = var.k8s_master_ip
+    network_ip = try(local.k8s_master_ips_effective[count.index], null)
   }
 
   service_account {
@@ -70,6 +78,16 @@ resource "google_compute_instance" "k8s_master" {
 
   allow_stopping_for_update = true
   labels                    = var.labels
+
+  lifecycle {
+    precondition {
+      condition = (
+        local.k8s_master_count_effective >= 1 &&
+        length(local.k8s_master_ips_effective) == local.k8s_master_count_effective
+      )
+      error_message = "You must provide one master IP per master. Set k8s_master_ips with length == k8s_master_count (or set legacy k8s_master_ip for single-master)."
+    }
+  }
 }
 
 ############################################

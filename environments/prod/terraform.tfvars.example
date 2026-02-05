@@ -5,13 +5,14 @@
 # Project Configuration
 # ==========================================
 host_project_id = "client-project-id"           # Your GCP Host Project ID
+service_project_id = "callzen-gcp"             # Service/Tenant project where VMs/IPs/buckets live
 region          = "asia-south1"                  # GCP Region
 zone            = "asia-south1-b"                # GCP Zone
 
 # ==========================================
 # Shared VPC Configuration
 # ==========================================
-network_name           = "callzen-shared-vpc"
+network_name           = "callzen"
 routing_mode           = "REGIONAL"               # REGIONAL or GLOBAL
 enable_shared_vpc_host = false                    # Set to true after getting org permissions
 service_project_ids    = ["callzen-gcp"]         # Convozen GCP Project
@@ -19,15 +20,24 @@ service_project_ids    = ["callzen-gcp"]         # Convozen GCP Project
 # ==========================================
 # Subnet Configuration
 # ==========================================
-kubernetes_subnet_name = "kubernetes-subnet"
-kubernetes_subnet_cidr = "10.0.0.0/24"           # 256 IPs for K8s cluster
-backend_subnet_name    = "backend-services-subnet"
-backend_subnet_cidr    = "10.1.0.0/24"           # 256 IPs for backend services
+# From your GCP subnet details:
+# - Subnet name: callzen-exp-k8s
+# - Region: asia-south1
+# - Primary range: 10.120.0.0/16
+kubernetes_subnet_name = "callzen-exp-k8s"
+
+# If you have a separate backend subnet, put its subnet NAME here.
+# If not, you can keep backend services in the same subnet.
+backend_subnet_name    = "callzen-exp-k8s"
 
 # ==========================================
 # Firewall Configuration
 # ==========================================
-internal_source_ranges = ["10.0.0.0/8"]          # Allow all internal traffic
+internal_source_ranges = [
+  "10.120.0.0/16",
+  "10.121.0.0/16",
+  "10.122.0.0/16",
+] # Allow all internal traffic
 k8s_api_source_ranges  = ["0.0.0.0/0"]           # TODO: CHANGE THIS FOR PRODUCTION!
 # For production, use specific IPs:
 # k8s_api_source_ranges = ["203.0.113.10/32", "198.51.100.20/32"]
@@ -42,10 +52,15 @@ backend_services_sa_name = "backend-services-sa"
 # ==========================================
 # Kubernetes Master Configuration
 # ==========================================
-k8s_master_name           = "k8s-master"
+k8s_master_count          = 3
+k8s_master_name_prefix    = "k8s-master"
 k8s_master_machine_type   = "n2d-standard-4"     # 4 vCPUs, 16 GB RAM
 k8s_master_boot_disk_size = 50                   # GB
-k8s_master_ip             = "10.0.0.2"
+k8s_master_ips = [
+  "10.120.0.10",
+  "10.120.0.11",
+  "10.120.0.12",
+]
 
 # Optional: Add startup script path
 # k8s_master_startup_script = file("${path.module}/scripts/k8s-master-setup.sh")
@@ -58,10 +73,10 @@ k8s_worker_name_prefix     = "k8s-worker"
 k8s_worker_machine_type    = "n2d-standard-4"    # Adjust based on workload
 k8s_worker_boot_disk_size  = 50                  # GB
 k8s_worker_ips = [
-  "10.0.0.3",
-  "10.0.0.4",
-  "10.0.0.5",
-  "10.0.0.6"
+  "10.120.0.20",
+  "10.120.0.21",
+  "10.120.0.22",
+  "10.120.0.23",
 ]
 
 # Optional: Add startup script
@@ -71,14 +86,14 @@ k8s_worker_ips = [
 # Backend Services - Reserved IPs
 # ==========================================
 backend_service_ips = {
-  mysql          = "10.1.0.8"
-  mongodb        = "10.1.0.9"
-  redis          = "10.1.0.10"
-  kbs            = "10.1.0.11"                   # Key Broker Service
-  log-server     = "10.1.0.12"
-  config-server  = "10.1.0.13"
-  elasticsearch  = "10.1.0.14"
-  speech-service = "10.1.0.15"
+  mysql          = "10.120.1.10"
+  mongodb        = "10.120.1.11"
+  redis          = "10.120.1.12"
+  kbs            = "10.120.1.13"                   # Key Broker Service
+  log-server     = "10.120.1.14"
+  config-server  = "10.120.1.15"
+  elasticsearch  = "10.120.1.16"
+  speech-service = "10.120.1.17"
 }
 
 # ==========================================
@@ -90,7 +105,7 @@ backend_services = {
     machine_type                  = "n2d-standard-4"
     boot_disk_size                = 50
     data_disk_size                = 100          # Additional disk for /var/lib/mysql
-    ip_address                    = "10.1.0.8"
+    ip_address                    = "10.120.1.10"
     enable_confidential_computing = false
     # startup_script = file("${path.module}/scripts/mysql-setup.sh")
   }
@@ -100,7 +115,7 @@ backend_services = {
     machine_type                  = "n2d-standard-4"
     boot_disk_size                = 50
     data_disk_size                = 100
-    ip_address                    = "10.1.0.9"
+    ip_address                    = "10.120.1.11"
     enable_confidential_computing = false
   }
   
@@ -109,7 +124,7 @@ backend_services = {
     machine_type                  = "n2-standard-2"
     boot_disk_size                = 30
     data_disk_size                = 0            # Redis uses memory
-    ip_address                    = "10.1.0.10"
+    ip_address                    = "10.120.1.12"
     enable_confidential_computing = false
   }
   
@@ -118,7 +133,7 @@ backend_services = {
     machine_type                  = "n2d-standard-2"
     boot_disk_size                = 30
     data_disk_size                = 0
-    ip_address                    = "10.1.0.11"
+    ip_address                    = "10.120.1.13"
     enable_confidential_computing = true         # MUST BE TRUE for KBS
   }
   
@@ -127,7 +142,7 @@ backend_services = {
     machine_type                  = "n2-standard-2"
     boot_disk_size                = 30
     data_disk_size                = 100          # For log storage
-    ip_address                    = "10.1.0.12"
+    ip_address                    = "10.120.1.14"
     enable_confidential_computing = false
   }
   
@@ -136,7 +151,7 @@ backend_services = {
     machine_type                  = "n2-standard-2"
     boot_disk_size                = 30
     data_disk_size                = 0
-    ip_address                    = "10.1.0.13"
+    ip_address                    = "10.120.1.15"
     enable_confidential_computing = false
   }
   
@@ -145,7 +160,7 @@ backend_services = {
     machine_type                  = "n2d-standard-4"
     boot_disk_size                = 50
     data_disk_size                = 200          # For Elasticsearch data
-    ip_address                    = "10.1.0.14"
+    ip_address                    = "10.120.1.16"
     enable_confidential_computing = false
   }
   
@@ -154,7 +169,7 @@ backend_services = {
     machine_type                  = "n2-standard-4"  # TODO: Add GPU if needed
     boot_disk_size                = 50
     data_disk_size                = 0
-    ip_address                    = "10.1.0.15"
+    ip_address                    = "10.120.1.17"
     enable_confidential_computing = false
     # For GPU instances, change machine_type to n1-standard-4 and add GPU
   }
@@ -163,8 +178,23 @@ backend_services = {
 # ==========================================
 # OS and Disk Configuration
 # ==========================================
-os_image        = "ubuntu-os-cloud/ubuntu-2204-lts"
 boot_disk_type  = "pd-balanced"                  # pd-standard, pd-balanced, or pd-ssd
+
+# Golden images (created manually and referenced here)
+os_images = {
+  k8s_master = "projects/PROJECT/global/images/K8S_MASTER_GOLDEN_IMAGE"
+  k8s_worker = "projects/PROJECT/global/images/K8S_WORKER_GOLDEN_IMAGE"
+  backend = {
+    mysql          = "projects/PROJECT/global/images/MYSQL_GOLDEN_IMAGE"
+    mongodb        = "projects/PROJECT/global/images/MONGODB_GOLDEN_IMAGE"
+    redis          = "projects/PROJECT/global/images/REDIS_GOLDEN_IMAGE"
+    kbs            = "projects/PROJECT/global/images/KBS_GOLDEN_IMAGE"
+    log-server     = "projects/PROJECT/global/images/LOG_SERVER_GOLDEN_IMAGE"
+    config-server  = "projects/PROJECT/global/images/CONFIG_SERVER_GOLDEN_IMAGE"
+    elasticsearch  = "projects/PROJECT/global/images/ELASTICSEARCH_GOLDEN_IMAGE"
+    speech-service = "projects/PROJECT/global/images/SPEECH_SERVICE_GOLDEN_IMAGE"
+  }
+}
 
 # ==========================================
 # Cloud Storage Configuration
@@ -181,6 +211,10 @@ additional_buckets = {
   #   name               = "callzen-logs-prod-unique"
   #   storage_class      = "STANDARD"
   #   versioning_enabled = false
+  #   lifecycle_rules = [
+  #     { age = 30, action = "Delete" }
+  #   ]
+  #   labels = { purpose = "logs" }
   # }
   # artifacts = {
   #   name               = "callzen-artifacts-prod-unique"

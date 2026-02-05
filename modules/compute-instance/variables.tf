@@ -106,9 +106,28 @@ variable "data_disk_type" {
 # Kubernetes Master
 ############################################
 
-variable "k8s_master_name" {
-  description = "Name of the Kubernetes master node"
+variable "k8s_master_count" {
+  description = "Number of Kubernetes master nodes"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.k8s_master_count >= 1 && var.k8s_master_count <= 9
+    error_message = "k8s_master_count must be between 1 and 9."
+  }
+}
+
+variable "k8s_master_name_prefix" {
+  description = "Name prefix/base for Kubernetes master nodes (e.g. k8s-master)"
   type        = string
+  default     = null
+}
+
+# Legacy single-master name (kept for backward compatibility)
+variable "k8s_master_name" {
+  description = "Name of the Kubernetes master node (legacy single-master input)"
+  type        = string
+  default     = null
 }
 
 variable "k8s_master_machine_type" {
@@ -126,9 +145,28 @@ variable "k8s_master_boot_disk_size" {
   }
 }
 
+variable "k8s_master_ips" {
+  description = "Reserved internal IPs for Kubernetes master nodes (preferred)"
+  type        = list(string)
+  default     = null
+
+  validation {
+    condition = (
+      var.k8s_master_ips == null ||
+      (
+        length(var.k8s_master_ips) == var.k8s_master_count &&
+        alltrue([for ip in var.k8s_master_ips : can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}$", ip))])
+      )
+    )
+    error_message = "k8s_master_ips must be null or a list of valid IPv4 addresses with length equal to k8s_master_count."
+  }
+}
+
+# Legacy (single master): kept for backward compatibility
 variable "k8s_master_ip" {
-  description = "Reserved internal IP for Kubernetes master"
+  description = "Reserved internal IP for Kubernetes master (legacy single-master input)"
   type        = string
+  default     = null
 }
 
 variable "k8s_master_sa_email" {

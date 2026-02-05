@@ -2,19 +2,35 @@
 # Kubernetes Master Outputs
 ############################################
 
+output "k8s_master_names" {
+  description = "Names of the Kubernetes master instances"
+  value       = [for m in google_compute_instance.k8s_masters : m.name]
+}
+
+output "k8s_master_internal_ips" {
+  description = "Internal IP addresses of the Kubernetes master instances"
+  value       = [for m in google_compute_instance.k8s_masters : m.network_interface[0].network_ip]
+}
+
+output "k8s_master_self_links" {
+  description = "Self-links of the Kubernetes master instances"
+  value       = [for m in google_compute_instance.k8s_masters : m.self_link]
+}
+
+# Backward-compatible single-master outputs (first element)
 output "k8s_master_name" {
-  description = "Name of the Kubernetes master instance"
-  value       = google_compute_instance.k8s_master.name
+  description = "Name of the Kubernetes master instance (legacy: first master)"
+  value       = try(google_compute_instance.k8s_masters[0].name, null)
 }
 
 output "k8s_master_internal_ip" {
-  description = "Internal IP address of the Kubernetes master"
-  value       = google_compute_instance.k8s_master.network_interface[0].network_ip
+  description = "Internal IP address of the Kubernetes master (legacy: first master)"
+  value       = try(google_compute_instance.k8s_masters[0].network_interface[0].network_ip, null)
 }
 
 output "k8s_master_self_link" {
-  description = "Self-link of the Kubernetes master instance"
-  value       = google_compute_instance.k8s_master.self_link
+  description = "Self-link of the Kubernetes master instance (legacy: first master)"
+  value       = try(google_compute_instance.k8s_masters[0].self_link, null)
 }
 
 ############################################

@@ -139,7 +139,7 @@ variable "service_project_ids" {
   description = "List of service project IDs that need compute.networkUser role on subnets"
   type        = list(string)
   default     = []
-  
+
   # Example: ["callzen-gcp"] for KMS project
   # Note: Service accounts in service projects need networkUser role on host project subnets
 }

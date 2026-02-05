@@ -33,13 +33,24 @@ output "backend_subnet_cidr" {
 }
 
 # Kubernetes Master Outputs
+output "k8s_master_names" {
+  description = "Names of Kubernetes master instances"
+  value       = module.compute_instances.k8s_master_names
+}
+
+output "k8s_master_internal_ips" {
+  description = "Internal IPs of Kubernetes masters"
+  value       = module.compute_instances.k8s_master_internal_ips
+}
+
+# Backward-compatible single-master outputs (first master)
 output "k8s_master_name" {
-  description = "Name of the Kubernetes master instance"
+  description = "Name of the Kubernetes master instance (legacy: first master)"
   value       = module.compute_instances.k8s_master_name
 }
 
 output "k8s_master_internal_ip" {
-  description = "Internal IP of the Kubernetes master"
+  description = "Internal IP of the Kubernetes master (legacy: first master)"
   value       = module.compute_instances.k8s_master_internal_ip
 }
 

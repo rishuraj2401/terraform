@@ -110,16 +110,16 @@ variable "additional_buckets" {
   description = "Additional GCS buckets"
   type = map(object({
     name = string
-    
+
     # Use optional() to stop the "missing attribute" errors
     storage_class      = optional(string, "STANDARD")
     versioning_enabled = optional(bool, true)
-    
+
     lifecycle_rules = optional(list(object({
       age    = number
       action = string
     })), [])
-    
+
     labels = optional(map(string), {})
   }))
   default = {}
